@@ -25,15 +25,16 @@ class SpoofDetector(object):
         return pkt[ARP].psrc
     
     def resolve_packet(self, pkt: scapy.packet.Packet) -> None:
-        if self.suspicious(pkt):
+        sus = self.suspicious(pkt)
+        if sus:
             attacker_ip = self.attacker_ip(pkt)
-            warnings.warn(f"potential arp poisening from ip address {attacker_ip}")
+            print('suspected arp poisening from ip address:', attacker_ip)
         return
 
 
     def run(self) -> None:
         try:
-            sniff(filter="arp", prn=self.resolve_packet, store=0, count=1)
+            sniff(filter="arp", prn=self.resolve_packet, store=0)
         except:
             import traceback
             traceback.print_exc()
@@ -41,7 +42,6 @@ class SpoofDetector(object):
     def start(self) -> None:
         while True:
             self.run()
-            print('loop')
 
 
 if __name__ == "__main__":
