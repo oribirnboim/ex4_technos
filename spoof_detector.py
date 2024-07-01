@@ -1,16 +1,7 @@
-from scapy.layers.l2 import ARP
-from scapy.layers.dns import IP
-import scapy
-from scapy.all import sniff
-import scapy.packet
+from scapy.all import sniff, ARP
 import warnings
+import scapy.packet
 from typing import Dict, List
-import multiprocessing as mp
-from scapy.layers.l2 import getmacbyip, Ether, ARP, srp
-from scapy.layers.dns import DNS, DNSQR, DNSRR, IP, sr1, UDP
-from scapy.all import send
-import scapy.all as scapy
-import time
 
 STATIC_ARP_DICT = {
     "10.0.2.43": "12:34:56:12:34:56",
@@ -25,30 +16,32 @@ class SpoofDetector(object):
     def suspicious(self, pkt: scapy.packet.Packet) -> bool:
         ip_list = list(self.static_arp_dict.keys())
         if ARP in pkt and pkt[ARP].op == 2: #if it is an arp response packet
-            ip = pkt[IP].src
+            ip = pkt[ARP].psrc
             mac = pkt[ARP].hwsrc
-            return ip in ip_list and mac != self.static_arp_dict[ip]
+            return ip in ip_list and self.static_arp_dict[ip] != mac
+        return False
     
     def attacker_ip(self, pkt: scapy.packet.Packet) -> str:
-        return pkt[IP].src
+        return pkt[ARP].psrc
     
     def resolve_packet(self, pkt: scapy.packet.Packet) -> None:
         if self.suspicious(pkt):
             attacker_ip = self.attacker_ip(pkt)
-            warnings.warn(f"detecetd arp poisening from ip address {attacker_ip}")
+            warnings.warn(f"potential arp poisening from ip address {attacker_ip}")
         return
 
 
     def run(self) -> None:
         try:
-            scapy.sniff(filter=ARP, prn=self.resolve_packet)
+            sniff(filter="arp", prn=self.resolve_packet, store=0, count=1)
         except:
             import traceback
             traceback.print_exc()
 
     def start(self) -> None:
-        for i in range(1):
+        while True:
             self.run()
+            print('loop')
 
 
 if __name__ == "__main__":
