@@ -1,8 +1,16 @@
 from scapy.layers.l2 import ARP
 from scapy.layers.dns import IP
 import scapy
+from scapy.all import sniff
 import scapy.packet
 import warnings
+from typing import Dict, List
+import multiprocessing as mp
+from scapy.layers.l2 import getmacbyip, Ether, ARP, srp
+from scapy.layers.dns import DNS, DNSQR, DNSRR, IP, sr1, UDP
+from scapy.all import send
+import scapy.all as scapy
+import time
 
 STATIC_ARP_DICT = {
     "10.0.2.43": "12:34:56:12:34:56",
@@ -32,15 +40,14 @@ class SpoofDetector(object):
 
 
     def run(self) -> None:
-        while True:
-            try:
-                scapy.sniff(filter = "arp", prn=self.resolve_packet, store=0)
-            except:
-                import traceback
-                traceback.print_exc()
+        try:
+            scapy.sniff(filter=ARP, prn=self.resolve_packet)
+        except:
+            import traceback
+            traceback.print_exc()
 
     def start(self) -> None:
-        while True:
+        for i in range(1):
             self.run()
 
 
