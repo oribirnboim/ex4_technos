@@ -177,12 +177,10 @@ class DnsHandler(object):
         qname=qname[:-1]
         keys = list(self.spoof_dict.keys())
         if qname in keys:
-            #print(qname)
             response = self.get_spoofed_dns_response(pkt, self.spoof_dict[qname])
             send(response)
             return('spoofed')
         else:
-            return
             response = self.get_real_dns_response(pkt)
             send(response)
             return('not spoofed')
